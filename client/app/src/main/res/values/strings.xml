@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">client</string>
+    <string name="dialogo_con_furhat">Dialogo con Furhat</string>
+    <string name="scrivi_un_messaggio">Scrivi un messaggio…</string>
+    <string name="invia">Invia</string>
 </resources>
