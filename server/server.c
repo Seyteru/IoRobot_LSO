@@ -1,5 +1,3 @@
-#include <stdio.h>
-#include <unistd.h>
 #include "server.h"
 #include "connection.h"
 
