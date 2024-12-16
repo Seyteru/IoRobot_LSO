@@ -4,13 +4,13 @@
 int serverFileDescriptor;
 
 int initializeServer(){
+    printf("Server Initialization on Port: 8080\n");
     serverFileDescriptor = createSocket(8080);
 
     if(serverFileDescriptor < 0){
         return -1;
     }
 
-    printf("Server Initialization on Port: 8080\n");
     return 0;
 }
 

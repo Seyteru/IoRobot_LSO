@@ -28,20 +28,45 @@ int createSocket(int serverPort){
         return -1;
     }
 
+    struct sockaddr_in actualAddress;
+    socklen_t addressLength = sizeof(actualAddress);
+    if(getsockname(serverFileDescriptor, (struct sockaddr *)&actualAddress, &addressLength) == 0){
+        char ipStr[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &actualAddress.sin_addr, ipStr, sizeof(ipStr));
+        printf("Server listening on IP: %s, Port: %d...\n", ipStr, serverPort);
+    }
+
     return serverFileDescriptor;
 }
 
 int acceptConnection(int serverFileDescriptor){
     struct sockaddr_in address;
-    int addressLength = sizeof(address);
-    return accept(serverFileDescriptor, (struct sockaddr *)&address, (socklen_t *)&addressLength);
+    socklen_t addressLength = sizeof(address);
+
+    int clientFileDescriptor = accept(serverFileDescriptor, (struct sockaddr *)&address, &addressLength);
+    if(clientFileDescriptor < 0){
+        perror("Accepting Connection Failure!");
+        return -1;
+    }
+
+    printf("Client connected from %s:%d\n", inet_ntoa(address.sin_addr), ntohs(address.sin_port));
+    return clientFileDescriptor;
 }
 
 void handleClient(int clientFileDescriptor){
     char buffer[BUFFER_SIZE] = {0};
-    read(clientFileDescriptor, buffer, BUFFER_SIZE);
-    printf("Received: %s\n", buffer);
-    const char *response = "WELCOME FROM SERVER!";
-    send(clientFileDescriptor, response, strlen(response), 0);
-    printf("Response sent\n");
+    int bytedRead = read(clientFileDescriptor, buffer, BUFFER_SIZE - 1);
+    
+    if(bytedRead > 0){
+        printf("Received: %s\n", buffer);
+        const char *response = "WELCOME FROM SERVER";
+        send(clientFileDescriptor, response, strlen(response), 0);
+        printf("Response sent\n");
+    } else if(bytedRead == 0){
+        printf("Client disconnected");
+    } else{
+        perror("Read Error!");
+    }
+
+    close(clientFileDescriptor);
 }
