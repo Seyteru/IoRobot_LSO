@@ -1,12 +1,25 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
 #include "server.h"
+#include "logger.h"
+
+void signalHandler(int sig) {
+    LOG_INFO("Received signal %d, shutting down server...", sig);
+    shutdownServer();
+    exit(0);
+}
 
 int main(){
-    printf ("Server starting...\n");
+    setLogLevel(LOG_DEBUG);
+    
+    LOG_INFO("Server starting...");
+
+    signal(SIGINT, signalHandler);
+    signal(SIGTERM, signalHandler);
 
     if(initializeServer() != 0){
-        fprintf(stderr, "Server Initialization Failure!\n");
+        LOG_ERROR("Server Initialization Failure!");
         return EXIT_FAILURE;
     }
 
@@ -14,7 +27,7 @@ int main(){
 
     shutdownServer();
     
-    printf("Server Closed!\n");
+    LOG_INFO("Server Closed!");
 
     return 0;
 }
