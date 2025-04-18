@@ -1,5 +1,6 @@
 package com.cioffidevivo.client.model
 
+import android.util.Log
 import okio.IOException
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -33,11 +34,17 @@ class SocketClient(private val serverIp: String, private val serverPort: Int) {
         thread {
             try {
                 var line: String?
-                while (reader?.readLine().also { line = it } != null) {
-                    onMessage(line!!)
+                while (true) {
+                    line = reader?.readLine()
+                    if (line == null) {
+                        Log.d("SocketClient", "Connessione chiusa dal server.")
+                        break
+                    }
+                    Log.d("SocketClient", "Messaggio ricevuto: $line") // <-- aggiunto log
+                    onMessage(line)
                 }
             } catch (e: IOException) {
-                e.printStackTrace()
+                Log.e("SocketClient", "Errore durante la lettura del messaggio", e)
             }
         }
     }

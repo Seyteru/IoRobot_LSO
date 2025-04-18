@@ -71,7 +71,7 @@ void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress){
     int age = 0;
     
     // 1) Invia la prima domanda al client (robot)
-    const char *firstAsk = "{\"type\":\"ask\",\"question\":\"Come ti chiami?\"}";
+    const char *firstAsk = "{\"type\":\"ask\",\"question\":\"Come ti chiami?\"}\n";
     send(clientFileDescriptor, firstAsk, strlen(firstAsk), 0);
     LOG_CLIENT_DEBUG(clientAddress, "Sent ask #1: Come ti chiami?");
 
@@ -96,7 +96,7 @@ void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress){
                 }
 
                 // Invia la seconda domanda
-                const char *secondAsk = "{\"type\":\"ask\",\"question\":\"Quanti anni hai?\"}";
+                const char *secondAsk = "{\"type\":\"ask\",\"question\":\"Quanti anni hai?\"}\n";
                 send(clientFileDescriptor, secondAsk, strlen(secondAsk), 0);
                 LOG_CLIENT_DEBUG(clientAddress, "Sent ask #2: Quanti anni hai?");
                 step = 1;

@@ -1,5 +1,6 @@
 package com.cioffidevivo.client.controller
 
+import android.util.Log
 import com.cioffidevivo.client.model.SocketClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -13,14 +14,22 @@ class FurhatController(
     suspend fun startSession(): Boolean = withContext(Dispatchers.IO) {
         val ok = client.connect()
         if (ok) {
-            client.listen { msgJson ->
+            client.listen { msg ->
+                Log.d("SOCKET_MESSAGE", "Ricevuto: $msg")
                 when {
-                    msgJson.contains("\"type\":\"ask\"") -> {
-                        val question = msgJson.substringAfter("\"question\":\"").substringBefore("\"")
+                    msg.contains("\"type\":\"ask\"") -> {
+                        val question = msg.substringAfter("\"question\":\"").substringBefore("\"")
                         onAsk(question)
                     }
-                    msgJson.contains("\"type\":\"result\"") -> {
-                        onResult(msgJson)
+
+                    msg.contains("Sent ask") -> {
+                        // esempio: "Sent ask #1: Come ti chiami?"
+                        val question = msg.substringAfter(":").trim()
+                        onAsk(question)
+                    }
+
+                    msg.contains("\"type\":\"result\"") -> {
+                        onResult(msg)
                     }
                 }
             }
