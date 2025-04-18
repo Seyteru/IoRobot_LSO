@@ -1,41 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="16dp"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
 
     <TextView
-        android:id="@+id/furhatMessage"
+        android:id="@+id/status"
+        android:text="Stato connessione"
+        android:textSize="18sp"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:background="@android:color/darker_gray"
-        android:padding="8dp"
-        android:text="@string/dialogo_con_furhat"
-        android:textColor="@android:color/white"
-        android:textSize="16sp"
-        android:gravity="start|top"
-        android:scrollbars="vertical" />
+        android:layout_height="wrap_content"/>
+
+    <Button
+        android:id="@+id/btnConnect"
+        android:text="Connetti"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
 
     <EditText
-        android:id="@+id/etMessage"
+        android:id="@+id/inputText"
+        android:hint="Scrivi la risposta..."
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="@string/scrivi_un_messaggio"
-        android:background="@android:color/white"
-        android:padding="8dp"
-        android:textSize="16sp"
-        android:inputType="text"
-        android:autofillHints="" />
+        android:layout_height="wrap_content"/>
 
     <Button
         android:id="@+id/btnSend"
+        android:text="Invia"
+        android:enabled="false"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/invia"
-        android:textAllCaps="false"
-        android:backgroundTint="@android:color/holo_blue_light"
-        android:textColor="@android:color/white" />
+        android:layout_height="wrap_content"/>
+
+    <Button
+        android:id="@+id/btnDisconnect"
+        android:text="Disconnetti"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
 </LinearLayout>

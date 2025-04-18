@@ -64,19 +64,93 @@ int acceptConnection(int serverFileDescriptor, struct sockaddr_in *clientAddress
 }
 
 void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress){
-    char buffer[BUFFER_SIZE] = {0};
-    int bytesRead = read(clientFileDescriptor, buffer, BUFFER_SIZE - 1);
+    char buffer[BUFFER_SIZE];
+    int bytesRead;
+    int step = 0;
+    char name[100] = {0};
+    int age = 0;
     
-    if(bytesRead > 0){
+    // 1) Invia la prima domanda al client (robot)
+    const char *firstAsk = "{\"type\":\"ask\",\"question\":\"Come ti chiami?\"}";
+    send(clientFileDescriptor, firstAsk, strlen(firstAsk), 0);
+    LOG_CLIENT_DEBUG(clientAddress, "Sent ask #1: Come ti chiami?");
+
+    // 2) Ciclo di lettura per gestire le risposte del client
+    while ((bytesRead = read(clientFileDescriptor, buffer, BUFFER_SIZE - 1)) > 0) {
+        buffer[bytesRead] = '\0';
         LOG_CLIENT_DEBUG(clientAddress, "Received: %s", buffer);
-        const char *response = "WELCOME FROM SERVER"; // Handle the response here
-        send(clientFileDescriptor, response, strlen(response), 0);
-        LOG_CLIENT_DEBUG(clientAddress, "Response sent");
-    } else if(bytesRead == 0){
-        LOG_CLIENT_INFO(clientAddress, "Client disconnected");
-    } else{
-        LOG_CLIENT_ERROR(clientAddress, "Read Error: %s", strerror(errno));
+
+        // Verifica se è un messaggio di tipo "answer"
+        if (strstr(buffer, "\"type\":\"answer\"")) {
+            if (step == 0) {
+                // Estrai il nome dal JSON
+                // Formato previsto: {"type":"answer","answer":"Mario"}
+                char *start = strstr(buffer, "\"answer\":\"");
+                if (start) {
+                    start += strlen("\"answer\":\"");      // posizionati subito dopo la chiave
+                    char *end = strchr(start, '"');        // trova la virgoletta di chiusura
+                    if (end) *end = '\0';                  // tronca la stringa
+                    strncpy(name, start, sizeof(name)-1);  // copia nel tuo buffer
+                    name[sizeof(name)-1] = '\0';
+                    LOG_CLIENT_INFO(clientAddress, "User name: %s", name);
+                }
+
+                // Invia la seconda domanda
+                const char *secondAsk = "{\"type\":\"ask\",\"question\":\"Quanti anni hai?\"}";
+                send(clientFileDescriptor, secondAsk, strlen(secondAsk), 0);
+                LOG_CLIENT_DEBUG(clientAddress, "Sent ask #2: Quanti anni hai?");
+                step = 1;
+            }
+            else if (step == 1) {
+                // Estrai l'età dal JSON
+                // Formato previsto: {"type":"answer","answer":"30"}
+                char *start = strstr(buffer, "\"answer\":\"");
+                if (start) {
+                    // Mi sposto subito dopo la parte "\"answer\":\""
+                    start += strlen("\"answer\":\"");
+                    // Trovo la virgoletta di chiusura
+                    char *end = strchr(start, '"');
+                    if (end) {
+                        *end = '\0';              // Termino la stringa lì
+                    }
+                    // Converto la sottostringa in intero
+                    int age = atoi(start);
+                    LOG_CLIENT_INFO(clientAddress, "User age: %d", age);
+                }
+
+                // Elabora i dati per la personalità (dummy)
+                double extroversion = 0.7;
+                double friendliness = 0.8;
+
+                // Prepara il messaggio di risultato
+                char resultJson[BUFFER_SIZE];
+                snprintf(resultJson, sizeof(resultJson),
+                         "{\"type\":\"result\",\"personality\":{"
+                         "\"extroversion\":%.2f,\"friendliness\":%.2f}}",
+                         extroversion, friendliness);
+
+                // Invia il risultato al client
+                send(clientFileDescriptor, resultJson, strlen(resultJson), 0);
+                LOG_CLIENT_DEBUG(clientAddress, "Sent personality result: %s", resultJson);
+
+                // Terminare la sessione
+                break;
+            }
+        }
+        else {
+            LOG_CLIENT_WARNING(clientAddress, "Unexpected message format: %s", buffer);
+        }
     }
+
+    if (bytesRead == 0) {
+        LOG_CLIENT_INFO(clientAddress, "Client disconnected normally");
+    } else if (bytesRead < 0) {
+        LOG_CLIENT_ERROR(clientAddress, "Read error: %s", strerror(errno));
+    }
+
+    // Chiudi connessione
+    close(clientFileDescriptor);
+    LOG_CLIENT_DEBUG(clientAddress, "Connection closed");
 }
 
 void* clientHandlerThread(void* arg) {
