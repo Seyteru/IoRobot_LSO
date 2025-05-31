@@ -1,5 +1,6 @@
 #include "connection.h"
 #include "logger.h"
+#include <curl/curl.h>
 
 #define BUFFER_SIZE 1024
 
@@ -94,6 +95,9 @@ void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress){
         send(clientFileDescriptor, askBuffer, strlen(askBuffer), 0);
         LOG_CLIENT_DEBUG(clientAddress, "Sent ask #%d: %s", questionIndex + 1, personalityQuestions[questionIndex]);
 
+        // Invia anche a Furhat
+        sendToFurhat(personalityQuestions[questionIndex]);
+
         // Attendi risposta
         bytesRead = read(clientFileDescriptor, buffer, BUFFER_SIZE - 1);
         if (bytesRead <= 0) break;
@@ -137,6 +141,12 @@ void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress){
             extroversion);
     send(clientFileDescriptor, resultJson, strlen(resultJson), 0);
     LOG_CLIENT_INFO(clientAddress, "Sent personality result: %s", resultJson);
+
+    // Comunica il risultato a Furhat
+    char furhatJson[512];
+    snprintf(furhatJson, sizeof(furhatJson),
+         "{\"type\":\"say\", \"text\":\"%s\"}", personalityQuestions[questionIndex]);
+    sendToFurhat(furhatJson);
 }
 
 void* clientHandlerThread(void* arg) {
@@ -160,4 +170,27 @@ void* clientHandlerThread(void* arg) {
     free(data);
     
     pthread_exit(NULL);
+}
+
+void sendToFurhat(const char *jsonMessage) {
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    struct sockaddr_in serverAddr;
+    
+    if (sockfd < 0) {
+        perror("Socket creation failed");
+        return;
+    }
+
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(5001);
+    serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+    if (connect(sockfd, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) {
+        perror("Connection to Python bridge failed");
+        close(sockfd);
+        return;
+    }
+
+    send(sockfd, jsonMessage, strlen(jsonMessage), 0);
+    close(sockfd);
 }

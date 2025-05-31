@@ -10,7 +10,7 @@ repositories {
 }
 
 dependencies {
-    implementation("org.json:json:20210307")
+    implementation("org.json:json:20231013")
 
     testImplementation(kotlin("test"))
 }

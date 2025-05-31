@@ -7,8 +7,8 @@ int serverFileDescriptor;
 volatile int serverRunning = 1;
 
 int initializeServer(){
-    LOG_INFO("Server Initialization on Port: 8080");
-    serverFileDescriptor = createSocket(8080);
+    LOG_INFO("Server Initialization on Port: 5555");
+    serverFileDescriptor = createSocket(5555);
 
     if(serverFileDescriptor < 0){
         return -1;
