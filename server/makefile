@@ -3,7 +3,7 @@ CC = gcc
 
 # Flag per il compilatore
 CFLAGS = -Wall -Wextra -O2
-LDFLAGS = -pthread -lwebsockets  # Aggiunto flag per il linker per supportare pthread
+LDFLAGS = -pthread -lcurl # Aggiunto flag per il linker per supportare pthread
 
 # Nome dell'eseguibile
 TARGET = server
