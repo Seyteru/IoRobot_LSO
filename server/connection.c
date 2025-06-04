@@ -1,5 +1,6 @@
 #include "connection.h"
 #include "logger.h"
+#include <curl/curl.h>
 
 #define BUFFER_SIZE 1024
 
@@ -137,6 +138,7 @@ void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress){
             extroversion);
     send(clientFileDescriptor, resultJson, strlen(resultJson), 0);
     LOG_CLIENT_INFO(clientAddress, "Sent personality result: %s", resultJson);
+
 }
 
 void* clientHandlerThread(void* arg) {

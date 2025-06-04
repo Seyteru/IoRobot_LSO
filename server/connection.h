@@ -22,4 +22,6 @@ void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress);
 
 void* clientHandlerThread(void* arg);
 
+void sendToFurhat(const char *text);
+
 #endif

@@ -10,7 +10,8 @@ repositories {
 }
 
 dependencies {
-    implementation("org.json:json:20210307")
+    implementation("org.json:json:20231013")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     testImplementation(kotlin("test"))
 }
