@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm") version "2.1.20"
+    application
 }
 
 group = "org.cioffiDeVivo"
@@ -21,4 +22,12 @@ tasks.test {
 }
 kotlin {
     jvmToolchain(17)
+}
+
+application {
+    mainClass.set("org.cioffiDeVivo.MainKt")
+}
+
+tasks.named<JavaExec>("run") {
+    standardInput = System.`in`
 }
