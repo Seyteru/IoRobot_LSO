@@ -93,28 +93,25 @@ void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress){
                 "{\"type\":\"ask\",\"question\":\"%s (1=Disaccordo, 7=Accordo)\"}\n",
                 personalityQuestions[questionIndex]);
         send(clientFileDescriptor, askBuffer, strlen(askBuffer), 0);
-        LOG_CLIENT_DEBUG(clientAddress, "Sent ask #%d: %s", questionIndex + 1, personalityQuestions[questionIndex]);
-
-        // Attendi risposta
+        LOG_CLIENT_DEBUG(clientAddress, "Sent ask #%d: %s", questionIndex + 1, personalityQuestions[questionIndex]);        // Attendi risposta
         bytesRead = read(clientFileDescriptor, buffer, BUFFER_SIZE - 1);
         if (bytesRead <= 0) break;
-
         buffer[bytesRead] = '\0';
+        
+        // Rimuovi caratteri di newline e carriage return
+        buffer[strcspn(buffer, "\r\n")] = '\0';
+        
         LOG_CLIENT_DEBUG(clientAddress, "Received answer to Q%d: %s", questionIndex + 1, buffer);
 
-        // Estrai risposta numerica
-        char *start = strstr(buffer, "\"answer\":\"");
-        if (start) {
-            start += strlen("\"answer\":\"");
-            char *end = strchr(start, '"');
-            if (end) *end = '\0';
-            int value = atoi(start);
-            if (value >= 1 && value <= 7) {
-                responses[questionIndex] = value;
-                questionIndex++;
-            } else {
-                LOG_CLIENT_WARNING(clientAddress, "Invalid value received: %s", start);
-            }
+        // Estrai risposta numerica (il client invia solo il numero)
+        int value = atoi(buffer);
+        if (value >= 1 && value <= 7) {
+            responses[questionIndex] = value;
+            questionIndex++;
+            LOG_CLIENT_INFO(clientAddress, "Valid response %d for question %d", value, questionIndex);
+        } else {
+            LOG_CLIENT_WARNING(clientAddress, "Invalid value received: %s. Please enter a number between 1 and 7.", buffer);
+            // Non incrementare questionIndex, ripeti la stessa domanda
         }
     }   
 
