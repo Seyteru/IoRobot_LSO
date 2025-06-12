@@ -90,7 +90,7 @@ void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress){
     while (questionIndex < totalQuestions) {
         char askBuffer[BUFFER_SIZE];
         snprintf(askBuffer, sizeof(askBuffer),
-                "{\"type\":\"ask\",\"question\":\"%s (1=Disaccordo, 7=Accordo)\"}\n",
+                "{\"type\":\"ask\",\"question\":\"%s\"}\n",
                 personalityQuestions[questionIndex]);
         send(clientFileDescriptor, askBuffer, strlen(askBuffer), 0);
         LOG_CLIENT_DEBUG(clientAddress, "Sent ask #%d: %s", questionIndex + 1, personalityQuestions[questionIndex]);
