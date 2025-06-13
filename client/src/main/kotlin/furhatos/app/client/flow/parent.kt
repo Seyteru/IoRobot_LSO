@@ -1,6 +1,7 @@
 package furhatos.app.client.flow
 
 import furhatos.app.client.flow.main.Idle
+import furhatos.app.client.network.ServerConnection
 import furhatos.flow.kotlin.*
 
 val Parent: State = state {
@@ -22,5 +23,6 @@ val Parent: State = state {
             !furhat.isAttending(it) -> furhat.glance(it.head.location) // other user left, just glance
         }
     }
+
 
 }

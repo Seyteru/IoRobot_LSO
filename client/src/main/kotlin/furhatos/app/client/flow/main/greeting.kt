@@ -6,6 +6,7 @@ import furhatos.nlu.common.No
 import furhatos.nlu.common.Yes
 
 val Greeting: State = state(Parent) {
+
     onEntry {
         furhat.ask("Ciao, vorrei farti qualche domanda per conoscerti meglio. Posso?")
     }
@@ -21,8 +22,8 @@ val Greeting: State = state(Parent) {
     }
 
     onResponse<No> {
-        furhat.say("Ok.")
-
+        furhat.say("Va bene, quando vuoi!")
+        goto(Idle)
     }
 
 }
