@@ -16,25 +16,6 @@ val FollowUpConversation: State = state(Parent) {
     onEntry {
         println("DEBUG: Entrando in FollowUpConversation con personalità: $currentPersonality")
 
-        // Messaggio di transizione personalizzato
-        val transitionMessage = when (currentPersonality.lowercase()) {
-            "riservato" -> {
-                furhat.gesture(Gestures.Thoughtful)
-                "Eh... va bene, continuiamo con calma..."
-            }
-            "aperto" -> {
-                furhat.gesture(Gestures.BigSmile)
-                furhat.attend(users.current)
-                "Fantastico! Ora parliamo di cose più divertenti!"
-            }
-            else -> {
-                furhat.gesture(Gestures.Smile)
-                "Bene, ora facciamo qualche domanda più rilassante."
-            }
-        }
-
-        furhat.say(transitionMessage)
-
         // Richiedi la prima domanda dal server
         requestNextQuestion()
     }

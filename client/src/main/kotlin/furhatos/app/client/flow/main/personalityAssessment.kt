@@ -29,17 +29,39 @@ val PersonalityAssessment: State = state(Parent) {
                 "result" -> {
                     val style = json.getJSONObject("personality").getString("style")
                     furhat.say("Hai uno stile $style.")
+                    // Salva la personalità per il prossimo stato
+                    currentPersonality = style
                 }
 
                 "transition" -> {
                     furhat.say(json.getString("message"))
+                    // NON chiamare goto qui - continua a processare messaggi
+                }
+
+                "state_change" -> {
+                    // Il server ci sta dicendo di cambiare stato
+                    println("DEBUG: Ricevuto messaggio state_change: ${json.toString()}")
+                    if (json.getString("new_state") == "follow_up") {
+                        val personality = json.getString("personality")
+                        currentPersonality = personality
+                        println("DEBUG: Ricevuto segnale di cambio stato, personalità: $personality")
+
+                        // Invia conferma al server
+                        println("DEBUG: Invio conferma READY_FOR_FOLLOWUP al server")
+                        server.sendLine("READY_FOR_FOLLOWUP")
+                        println("DEBUG: Conferma inviata, cambio stato a FollowUpConversation")
+
+                        // Cambia stato
+                        goto(FollowUpConversation)
+                        return@onEntry
+                    }
                 }
 
                 else -> break
             }
         }
 
-        // Nessun altro messaggio dal server
+        // Nessun altro messaggio dal server, vai al follow-up
         goto(FollowUpConversation)
     }
 
@@ -70,7 +92,7 @@ val PersonalityAssessment: State = state(Parent) {
                 server.sendLine(number.toString())
                 isWaitingForAnswer = false
 
-                // Continua con il prossimo messaggio del server
+                // Continua a leggere messaggi dal server fino al cambio di stato
                 while (true) {
                     val json: JSONObject = server.readJson() ?: break
 
@@ -85,17 +107,37 @@ val PersonalityAssessment: State = state(Parent) {
                         "result" -> {
                             val style = json.getJSONObject("personality").getString("style")
                             furhat.say("Hai uno stile $style.")
+                            currentPersonality = style
                         }
 
                         "transition" -> {
                             furhat.say(json.getString("message"))
                         }
 
+                        "state_change" -> {
+                            // Il server ci sta dicendo di cambiare stato
+                            println("DEBUG: Ricevuto messaggio state_change in onResponse: ${json.toString()}")
+                            if (json.getString("new_state") == "follow_up") {
+                                val personality = json.getString("personality")
+                                currentPersonality = personality
+                                println("DEBUG: Ricevuto segnale di cambio stato, personalità: $personality")
+
+                                // Invia conferma al server
+                                println("DEBUG: Invio conferma READY_FOR_FOLLOWUP al server")
+                                server.sendLine("READY_FOR_FOLLOWUP")
+                                println("DEBUG: Conferma inviata, cambio stato a FollowUpConversation")
+
+                                // Cambia stato
+                                goto(FollowUpConversation)
+                                return@onResponse
+                            }
+                        }
+
                         else -> break
                     }
                 }
 
-                // Nessun altro messaggio dal server
+                // Se arriviamo qui senza state_change, vai comunque al follow-up
                 goto(FollowUpConversation)
             } else {
                 println("DEBUG: Numero non riconosciuto")

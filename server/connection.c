@@ -166,6 +166,31 @@ void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress){
     }
     send(clientFileDescriptor, transitionMsg, strlen(transitionMsg), 0);
 
+    // *** NUOVO: Segnala al client di cambiare stato ***
+    char stateChangeMsg[BUFFER_SIZE];
+    snprintf(stateChangeMsg, sizeof(stateChangeMsg),
+        "{ \"type\": \"state_change\", \"new_state\": \"follow_up\", \"personality\": \"%s\" }\n", style);
+    send(clientFileDescriptor, stateChangeMsg, strlen(stateChangeMsg), 0);
+    LOG_CLIENT_INFO(clientAddress, "Sent state change signal for follow-up phase");
+
+    // *** NUOVO: Aspetta conferma dal client ***
+    LOG_CLIENT_DEBUG(clientAddress, "Waiting for state change confirmation...");
+    bytesRead = read(clientFileDescriptor, buffer, BUFFER_SIZE - 1);
+    if (bytesRead <= 0) {
+        LOG_CLIENT_ERROR(clientAddress, "Failed to receive state change confirmation (bytesRead: %d)", bytesRead);
+        return;
+    }
+    buffer[bytesRead] = '\0';
+    buffer[strcspn(buffer, "\r\n")] = '\0';
+    
+    LOG_CLIENT_DEBUG(clientAddress, "Received confirmation message: '%s'", buffer);
+    
+    if (strcmp(buffer, "READY_FOR_FOLLOWUP") != 0) {
+        LOG_CLIENT_WARNING(clientAddress, "Unexpected response to state change: '%s' (expected: 'READY_FOR_FOLLOWUP')", buffer);
+        return;
+    }
+    LOG_CLIENT_INFO(clientAddress, "Received confirmation for follow-up phase");
+
     // Domande di follow-up con comportamento adattivo
     const char *followUpQuestions[] = {
         "Qual è il tuo colore preferito?",
