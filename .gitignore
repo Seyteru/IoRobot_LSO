@@ -3,3 +3,5 @@
 *.key
 *.log
 *.o
+server/server
+server/.env
