@@ -19,9 +19,10 @@ val PersonalityAssessment: State = state(Parent) {
             val json: JSONObject = server.readJson() ?: break
 
             when (json.getString("type")) {
-                "ask" -> {
+                "ask", "gpt_ask" -> {
                     currentQuestion = json.getString("question")
                     isWaitingForAnswer = true
+                    println("DEBUG: Ricevuta domanda: $currentQuestion")
                     furhat.ask(currentQuestion)
                     return@onEntry // Esci e aspetta la risposta
                 }
@@ -57,7 +58,10 @@ val PersonalityAssessment: State = state(Parent) {
                     }
                 }
 
-                else -> break
+                else -> {
+                    println("DEBUG: Tipo di messaggio non riconosciuto: ${json.getString("type")}")
+                    break
+                }
             }
         }
 
@@ -97,9 +101,10 @@ val PersonalityAssessment: State = state(Parent) {
                     val json: JSONObject = server.readJson() ?: break
 
                     when (json.getString("type")) {
-                        "ask" -> {
+                        "ask", "gpt_ask" -> {
                             currentQuestion = json.getString("question")
                             isWaitingForAnswer = true
+                            println("DEBUG: Ricevuta nuova domanda: $currentQuestion")
                             furhat.ask(currentQuestion)
                             return@onResponse
                         }
@@ -133,7 +138,10 @@ val PersonalityAssessment: State = state(Parent) {
                             }
                         }
 
-                        else -> break
+                        else -> {
+                            println("DEBUG: Tipo di messaggio non riconosciuto: ${json.getString("type")}")
+                            break
+                        }
                     }
                 }
 

@@ -134,7 +134,7 @@ private fun FlowControlRunner.requestNextQuestion() {
 
         if (json != null) {
             when (json.getString("type")) {
-                "ask" -> {
+                "ask", "gpt_ask" -> {
                     currentQuestion = json.getString("question")
 
                     // Aggiorna personalità se presente
@@ -178,7 +178,7 @@ private fun FlowControlRunner.requestNextQuestion() {
                     requestNextQuestion()
                 }
 
-                "closing" -> {
+                "closing", "gpt_closing" -> {
                     val message = json.getString("message")
                     endConversationWithPersonality(message)
                     return
