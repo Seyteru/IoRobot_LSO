@@ -126,9 +126,12 @@ void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress){
             
             // Invia la domanda GPT al client
             char askJson[BUFFER_SIZE];
-            snprintf(askJson, sizeof(askJson),
+            int written = snprintf(askJson, sizeof(askJson),
                     "{ \"type\": \"gpt_ask\", \"question\": \"%s\", \"questionNum\": %d, \"total\": %d }\n",
                     sanitized_response, questionIndex + 1, totalQuestions);
+            if (written < 0 || written >= (int)sizeof(askJson)) {
+                fprintf(stderr, "Warning: JSON stringa troncata (%d caratteri)\n", written);
+            }
             send(clientFileDescriptor, askJson, strlen(askJson), 0);
             LOG_CLIENT_INFO(clientAddress, "→ CLIENT: Sent GPT-generated question %d/%d (behavior: %s)", 
                            questionIndex + 1, totalQuestions, behavior_style);
@@ -219,17 +222,24 @@ void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress){
     // Messaggio di chiusura personalizzato tramite GPT
     if (gpt_session) {
         char final_prompt[512];
-        snprintf(final_prompt, sizeof(final_prompt), 
+        int written = snprintf(final_prompt, sizeof(final_prompt), 
             "[%s]; [%s]; [conversazione_conclusa]", buffer, style);
         
+        if (written < 0 || written >= (int)sizeof(final_prompt)) {
+            fprintf(stderr, "Warning: final_prompt troncato (%d caratteri)\n", written);
+        }
         char final_response[GPT_RESPONSE_SIZE];        if (gpt_send_message(gpt_session, final_prompt, final_response, sizeof(final_response)) == 0) {
             // Sanifica la risposta finale per il JSON
             char sanitized_final[BUFFER_SIZE];
             sanitize_for_json(final_response, sanitized_final, sizeof(sanitized_final));
             
             char closingJson[BUFFER_SIZE];
-            snprintf(closingJson, sizeof(closingJson),
+            int written = snprintf(closingJson, sizeof(closingJson),
                 "{ \"type\": \"gpt_closing\", \"message\": \"%s\" }\n", sanitized_final);
+
+            if (written < 0 || written >= (int)sizeof(closingJson)) {
+                fprintf(stderr, "Warning: closingJson troncato (%d caratteri)\n", written);
+            }
             send(clientFileDescriptor, closingJson, strlen(closingJson), 0);
             LOG_CLIENT_INFO(clientAddress, "→ CLIENT: Sent GPT closing message");
             LOG_CLIENT_DEBUG(clientAddress, "→ JSON: %s", closingJson);        } else {

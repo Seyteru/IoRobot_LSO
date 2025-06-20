@@ -93,7 +93,10 @@ char* gpt_load_prompt_template() {
         return NULL;
     }
     
-    fread(prompt, 1, file_size, prompt_file);
+    size_t read = fread(prompt, 1, file_size, prompt_file);
+    if (read != (size_t)file_size) {
+        fprintf(stderr, "Error: letti solo %zu byte su %zu dal prompt\n", read, file_size);
+    }
     prompt[file_size] = '\0';
     fclose(prompt_file);
     
@@ -132,9 +135,9 @@ gpt_session_t* gpt_create_session() {
     }
     
     // Copia la configurazione globale
-    strncpy(session->api_key, g_api_key, sizeof(session->api_key) - 1);
-    strncpy(session->api_url, g_api_url, sizeof(session->api_url) - 1);
-    strncpy(session->model, g_model, sizeof(session->model) - 1);
+    snprintf(session->api_key, sizeof(session->api_key), "%s", g_api_key);
+    snprintf(session->api_url, sizeof(session->api_url), "%s", g_api_url);
+    snprintf(session->model, sizeof(session->model), "%s", g_model);
     session->max_tokens = g_max_tokens;
     session->temperature = g_temperature;
     
