@@ -92,7 +92,6 @@ val PersonalityAssessment: State = state(Parent) {
 
             if (number != null) {
                 println("DEBUG: Numero riconosciuto: $number")
-                furhat.say("Hai detto il numero $number")
                 server.sendLine(number.toString())
                 isWaitingForAnswer = false
 

@@ -106,6 +106,7 @@ void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress){
     
     double current_extroversion = 3.5; // Valore neutrale iniziale per adattare il comportamento
 
+    // ========== FASE 1: PERSONALITY ASSESSMENT ==========
     // Invia le domande una alla volta (ora generate da GPT)
     while (questionIndex < totalQuestions) {
         char gpt_prompt[BUFFER_SIZE];
@@ -119,7 +120,8 @@ void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress){
         if (gpt_session && gpt_format_personality_prompt(gpt_prompt, sizeof(gpt_prompt), 
                                          questionIndex == 0 ? NULL : buffer, 
                                          behavior_style, 
-                                         personalityQuestions[questionIndex]) == 0 &&            gpt_send_message(gpt_session, gpt_prompt, gpt_response, sizeof(gpt_response)) == 0) {
+                                         personalityQuestions[questionIndex]) == 0 &&
+            gpt_send_message(gpt_session, gpt_prompt, gpt_response, sizeof(gpt_response)) == 0) {
               // Sanifica la risposta GPT per il JSON
             char sanitized_response[BUFFER_SIZE];
             sanitize_for_json(gpt_response, sanitized_response, sizeof(sanitized_response));
@@ -136,7 +138,8 @@ void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress){
             LOG_CLIENT_INFO(clientAddress, "→ CLIENT: Sent GPT-generated question %d/%d (behavior: %s)", 
                            questionIndex + 1, totalQuestions, behavior_style);
             LOG_CLIENT_DEBUG(clientAddress, "→ JSON: %s", askJson);
-        } else {            // Fallback alle domande statiche se GPT non funziona
+        } else {
+            // Fallback alle domande statiche se GPT non funziona
             char askBuffer[BUFFER_SIZE];
             snprintf(askBuffer, sizeof(askBuffer),
                     "{\"type\":\"ask\",\"question\":\"%s\",\"questionNum\":%d,\"total\":%d}\n",
@@ -146,7 +149,8 @@ void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress){
                            questionIndex + 1, totalQuestions);
             LOG_CLIENT_DEBUG(clientAddress, "→ JSON: %s", askBuffer);
         }
-          // Attendi risposta
+        
+        // Attendi risposta
         bytesRead = read(clientFileDescriptor, buffer, BUFFER_SIZE - 1);
         if (bytesRead <= 0) {
             LOG_CLIENT_ERROR(clientAddress, "← CLIENT: Connection lost or no response received");
@@ -155,7 +159,9 @@ void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress){
         buffer[bytesRead] = '\0';
         buffer[strcspn(buffer, "\r\n")] = '\0';
         
-        LOG_CLIENT_INFO(clientAddress, "← CLIENT: Received response to Q%d: \"%s\"", questionIndex + 1, buffer);        int value = atoi(buffer);
+        LOG_CLIENT_INFO(clientAddress, "← CLIENT: Received response to Q%d: \"%s\"", questionIndex + 1, buffer);
+        
+        int value = atoi(buffer);
         if (value >= 1 && value <= 7) {
             responses[questionIndex] = value;
             questionIndex++;
@@ -179,7 +185,7 @@ void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress){
         }
     }
 
-    // Calcolo dell'estroversione
+    // Calcolo dell'estroversione finale
     double score = 0.0;
     for (int i = 0; i < totalQuestions; i++) {
         int response = responses[i];
@@ -203,7 +209,9 @@ void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress){
     } else {
         style = "aperto";
         behaviorInstructions = "\"maintainEyeContact\", \"useGestures\", \"enthusiastic\", \"confident\"";
-    }    // Invia il risultato della personalità
+    }
+
+    // Invia il risultato della personalità
     char resultJson[BUFFER_SIZE];
     snprintf(resultJson, sizeof(resultJson),
             "{ \"type\": \"result\", \"personality\": {"
@@ -219,16 +227,104 @@ void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress){
                    extroversion, style);
     LOG_CLIENT_DEBUG(clientAddress, "→ JSON: %s", resultJson);
 
-    // Messaggio di chiusura personalizzato tramite GPT
+    // Messaggio di transizione al follow-up
+    char transitionJson[BUFFER_SIZE];
+    snprintf(transitionJson, sizeof(transitionJson),
+            "{ \"type\": \"state_change\", \"new_state\": \"follow_up\", \"personality\": \"%s\" }\n",
+            style);
+    send(clientFileDescriptor, transitionJson, strlen(transitionJson), 0);
+    LOG_CLIENT_INFO(clientAddress, "→ CLIENT: Sent state change to follow-up");
+    LOG_CLIENT_DEBUG(clientAddress, "→ JSON: %s", transitionJson);
+
+    // Attendi conferma dal client
+    bytesRead = read(clientFileDescriptor, buffer, BUFFER_SIZE - 1);
+    if (bytesRead <= 0) {
+        LOG_CLIENT_ERROR(clientAddress, "← CLIENT: No confirmation received for state change");
+        goto cleanup;
+    }
+    buffer[bytesRead] = '\0';
+    buffer[strcspn(buffer, "\r\n")] = '\0';
+    
+    if (strcmp(buffer, "READY_FOR_FOLLOWUP") != 0) {
+        LOG_CLIENT_WARNING(clientAddress, "← CLIENT: Unexpected response: \"%s\", expected READY_FOR_FOLLOWUP", buffer);
+        goto cleanup;
+    }
+    
+    LOG_CLIENT_INFO(clientAddress, "← CLIENT: Received confirmation for follow-up phase");
+
+    // ========== FASE 2: FOLLOW-UP CONVERSATION ==========
     if (gpt_session) {
+        LOG_CLIENT_INFO(clientAddress, "🔄 Starting follow-up conversation phase");
+        
+        // Numero di domande di follow-up (configurabile)
+        int followup_questions = 3;
+        int followup_index = 0;
+        
+        while (followup_index < followup_questions) {
+            char followup_prompt[BUFFER_SIZE];
+            char followup_response[GPT_RESPONSE_SIZE];
+            
+            // Crea il prompt per la domanda di follow-up basata sulla personalità
+            int written = snprintf(followup_prompt, sizeof(followup_prompt),
+                "[personalità:%s]; [domanda_followup:%d]; [ultima_risposta:%s]; [genera_domanda_approfondimento]",
+                style, followup_index + 1, followup_index > 0 ? buffer : "prima_domanda");
+            
+            if (written < 0 || written >= (int)sizeof(followup_prompt)) {
+                fprintf(stderr, "Warning: followup_prompt troncato (%d caratteri)\n", written);
+            }
+            
+            // Genera la domanda di follow-up tramite GPT
+            if (gpt_send_message(gpt_session, followup_prompt, followup_response, sizeof(followup_response)) == 0) {
+                // Sanifica la risposta GPT per il JSON
+                char sanitized_followup[BUFFER_SIZE];
+                sanitize_for_json(followup_response, sanitized_followup, sizeof(sanitized_followup));
+                
+                // Invia la domanda di follow-up al client
+                char followupJson[BUFFER_SIZE];
+                int written = snprintf(followupJson, sizeof(followupJson),
+                        "{ \"type\": \"gpt_ask\", \"question\": \"%s\", \"questionNum\": %d, \"total\": %d }\n",
+                        sanitized_followup, followup_index + 1, followup_questions);
+                
+                if (written < 0 || written >= (int)sizeof(followupJson)) {
+                    fprintf(stderr, "Warning: followupJson troncato (%d caratteri)\n", written);
+                }
+                
+                send(clientFileDescriptor, followupJson, strlen(followupJson), 0);
+                LOG_CLIENT_INFO(clientAddress, "→ CLIENT: Sent GPT follow-up question %d/%d", 
+                               followup_index + 1, followup_questions);
+                LOG_CLIENT_DEBUG(clientAddress, "→ JSON: %s", followupJson);
+                
+                // Attendi risposta del client
+                bytesRead = read(clientFileDescriptor, buffer, BUFFER_SIZE - 1);
+                if (bytesRead <= 0) {
+                    LOG_CLIENT_ERROR(clientAddress, "← CLIENT: Connection lost during follow-up");
+                    break;
+                }
+                buffer[bytesRead] = '\0';
+                buffer[strcspn(buffer, "\r\n")] = '\0';
+                
+                LOG_CLIENT_INFO(clientAddress, "← CLIENT: Received follow-up response %d: \"%s\"", 
+                               followup_index + 1, buffer);
+                
+                followup_index++;
+            } else {
+                LOG_CLIENT_ERROR(clientAddress, "Failed to generate follow-up question %d, ending conversation", 
+                               followup_index + 1);
+                break;
+            }
+        }
+        
+        // Messaggio di chiusura personalizzato tramite GPT
         char final_prompt[512];
         int written = snprintf(final_prompt, sizeof(final_prompt), 
-            "[%s]; [%s]; [conversazione_conclusa]", buffer, style);
+            "[%s]; [%s]; [conversazione_conclusa_completa]", buffer, style);
         
         if (written < 0 || written >= (int)sizeof(final_prompt)) {
             fprintf(stderr, "Warning: final_prompt troncato (%d caratteri)\n", written);
         }
-        char final_response[GPT_RESPONSE_SIZE];        if (gpt_send_message(gpt_session, final_prompt, final_response, sizeof(final_response)) == 0) {
+        
+        char final_response[GPT_RESPONSE_SIZE];
+        if (gpt_send_message(gpt_session, final_prompt, final_response, sizeof(final_response)) == 0) {
             // Sanifica la risposta finale per il JSON
             char sanitized_final[BUFFER_SIZE];
             sanitize_for_json(final_response, sanitized_final, sizeof(sanitized_final));
@@ -242,25 +338,13 @@ void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress){
             }
             send(clientFileDescriptor, closingJson, strlen(closingJson), 0);
             LOG_CLIENT_INFO(clientAddress, "→ CLIENT: Sent GPT closing message");
-            LOG_CLIENT_DEBUG(clientAddress, "→ JSON: %s", closingJson);        } else {
-            // Fallback statico se GPT fallisce
-            char closingJson[BUFFER_SIZE];
-            if (strcmp(style, "riservato") == 0) {
-                snprintf(closingJson, sizeof(closingJson),
-                    "{ \"type\": \"closing\", \"message\": \"Eh... grazie per aver parlato con me.\" }\n");
-            } else if (strcmp(style, "aperto") == 0) {
-                snprintf(closingJson, sizeof(closingJson),
-                    "{ \"type\": \"closing\", \"message\": \"È stato fantastico parlare con te! Grazie mille!\" }\n");
-            } else {
-                snprintf(closingJson, sizeof(closingJson),
-                    "{ \"type\": \"closing\", \"message\": \"Grazie per la conversazione.\" }\n");
-            }
-            send(clientFileDescriptor, closingJson, strlen(closingJson), 0);
-            LOG_CLIENT_INFO(clientAddress, "→ CLIENT: Sent STATIC closing message (GPT failed)");
             LOG_CLIENT_DEBUG(clientAddress, "→ JSON: %s", closingJson);
+        } else {
+            goto static_closing;
         }
     } else {
-        // Messaggio di chiusura statico se non c'è GPT
+        static_closing:
+        // Messaggio di chiusura statico se GPT non è disponibile
         char closingJson[BUFFER_SIZE];
         if (strcmp(style, "riservato") == 0) {
             snprintf(closingJson, sizeof(closingJson),
@@ -273,14 +357,15 @@ void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress){
                 "{ \"type\": \"closing\", \"message\": \"Grazie per la conversazione.\" }\n");
         }
         send(clientFileDescriptor, closingJson, strlen(closingJson), 0);
-        LOG_CLIENT_INFO(clientAddress, "→ CLIENT: Sent STATIC closing message (no GPT session)");
+        LOG_CLIENT_INFO(clientAddress, "→ CLIENT: Sent STATIC closing message");
         LOG_CLIENT_DEBUG(clientAddress, "→ JSON: %s", closingJson);
     }
 
+cleanup:
     // Cleanup sessione GPT
     if (gpt_session) {
         gpt_destroy_session(gpt_session);
-        LOG_CLIENT_INFO(clientAddress, "Assessment completed and GPT session destroyed");
+        LOG_CLIENT_INFO(clientAddress, "Complete assessment and follow-up completed, GPT session destroyed");
     }
 }
 

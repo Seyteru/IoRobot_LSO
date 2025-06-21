@@ -4,19 +4,24 @@ import furhatos.app.client.flow.Parent
 import furhatos.app.client.flow.server
 import furhatos.flow.kotlin.*
 import furhatos.gestures.Gestures
+import furhatos.records.Location
 import org.json.JSONObject
+import kotlin.random.Random
 
 var currentPersonality: String = ""
 var isWaitingForResponse = false
 var currentQuestion = ""
 var questionCount = 0
 
+// Tracciamento per comportamenti naturali
+var lastGestureTime = 0L
+var conversationIntensity = 1.0 // Scala da 0.5 a 2.0
+
 val FollowUpConversation: State = state(Parent) {
 
     onEntry {
         println("DEBUG: Entrando in FollowUpConversation con personalità: $currentPersonality")
-
-        // Richiedi la prima domanda dal server
+        initializePersonalityBehavior()
         requestNextQuestion()
     }
 
@@ -24,6 +29,9 @@ val FollowUpConversation: State = state(Parent) {
         if (isWaitingForResponse) {
             val response = it.text.trim()
             println("DEBUG: Follow-up risposta ricevuta: '$response'")
+
+            // Analizza la risposta per adattare l'intensità
+            analyzeResponseIntensity(response)
 
             // Reagisci emotivamente in base alla personalità
             reactToResponse(response)
@@ -34,7 +42,7 @@ val FollowUpConversation: State = state(Parent) {
             questionCount++
 
             // Richiedi la prossima domanda
-            delay(500) // Piccola pausa prima della prossima domanda
+            delay(500)
             requestNextQuestion()
         }
     }
@@ -47,89 +55,256 @@ val FollowUpConversation: State = state(Parent) {
     }
 }
 
-private fun TriggerRunner<*>.handleNoResponse() {
+private fun FlowControlRunner.initializePersonalityBehavior() {
     when (currentPersonality.lowercase()) {
         "riservato" -> {
+            // Postura iniziale riservata
+            furhat.gesture(Gestures.CloseEyes, async = true)
+            delay(300)
             furhat.gesture(Gestures.Thoughtful)
-            val messages = arrayOf(
-                "Prenditi il tempo che ti serve per pensare...",
-                "Non c'è fretta...",
-                "Puoi rispondere quando ti senti pronto..."
-            )
-            furhat.say(messages.random())
+            // Evita contatto visivo diretto, guarda leggermente di lato
+            furhat.attend(Location(0.3, 0.0, 1.0))
         }
+
         "aperto" -> {
+            // Postura iniziale aperta e accogliente
             furhat.gesture(Gestures.BigSmile)
-            furhat.attend(users.current)
-            val messages = arrayOf(
-                "Dai, dimmi quello che pensi! Non essere timido!",
-                "Su, raccontami!",
-                "Sono curioso di sentire la tua opinione!"
-            )
-            furhat.say(messages.random())
+            furhat.attend(users.current ?: users.random)
+            // Gesto di benvenuto
+            delay(200)
+            furhat.gesture(Gestures.Nod)
         }
+
         else -> {
-            furhat.say("Puoi ripetere la tua risposta?")
+            // Neutrale - postura standard
+            furhat.gesture(Gestures.Smile)
+            furhat.attend(users.current ?: users.random)
         }
     }
 }
 
-private fun TriggerRunner<*>.reactToResponse(response: String) {
+private fun analyzeResponseIntensity(response: String) {
+    // Adatta l'intensità della conversazione basandosi sulla lunghezza e contenuto
+    val responseLength = response.length
+    val wordsCount = response.split(" ").size
+
+    when {
+        responseLength > 50 && wordsCount > 8 -> conversationIntensity = minOf(2.0, conversationIntensity + 0.2)
+        responseLength < 10 || wordsCount < 3 -> conversationIntensity = maxOf(0.5, conversationIntensity - 0.1)
+        else -> conversationIntensity = (conversationIntensity + 1.0) / 2.0 // Tende verso il neutro
+    }
+}
+
+private fun TriggerRunner<*>.handleNoResponse() {
     when (currentPersonality.lowercase()) {
         "riservato" -> {
-            // Reazioni più contenute e incerte
-            if (response.length > 20) {
-                furhat.gesture(Gestures.Nod)
-                val reactions = arrayOf(
-                    "Ah... interessante...",
-                    "Mmm, capisco...",
-                    "Sì, va bene..."
-                )
-                furhat.say(reactions.random())
-            } else {
-                furhat.gesture(Gestures.Thoughtful)
-                val reactions = arrayOf(
-                    "Capisco.",
-                    "Ah, okay...",
-                    "Sì..."
-                )
-                furhat.say(reactions.random())
-            }
+            // Comportamento ancora più riservato quando non c'è risposta
+            performReservedWaitingBehavior()
         }
 
         "aperto" -> {
-            // Reazioni più enthusiastiche e dirette
-            furhat.attend(users.current)
-            if (response.length > 20) {
-                furhat.gesture(Gestures.BigSmile)
-                val reactions = arrayOf(
-                    "Che bello!",
-                    "Davvero interessante!",
-                    "Fantastico! Mi piace il tuo modo di pensare!"
-                )
-                furhat.say(reactions.random())
-            } else {
-                furhat.gesture(Gestures.Smile)
-                val reactions = arrayOf(
-                    "Perfetto!",
-                    "Fantastico!",
-                    "Ottimo!"
-                )
-                furhat.say(reactions.random())
-            }
+            // Comportamento incoraggiante ma rispettoso
+            performOpenWaitingBehavior()
         }
 
         else -> {
-            // Comportamento neutro
-            furhat.gesture(Gestures.Nod)
-            furhat.say("Interessante.")
+            performNeutralWaitingBehavior()
         }
     }
+}
+
+private fun TriggerRunner<*>.performReservedWaitingBehavior() {
+    val waitingBehaviors = arrayOf(
+        {
+            furhat.gesture(Gestures.Thoughtful)
+            // Guarda ancora più lontano, quasi evitando
+            furhat.attend(Location(0.5, -0.2, 1.0))
+            furhat.say("Um... non c'è fretta...", async = true)
+            delay(800)
+            // Gesto nervoso - si tocca il viso o guarda in basso
+            furhat.gesture(Gestures.CloseEyes, async = true)
+            delay(300)
+        },
+        {
+            // Comportamento molto timido
+            furhat.attend(Location(0.0, -0.3, 1.0)) // Guarda in basso
+            furhat.say("Ehm... puoi pensarci con calma...", async = true)
+            delay(1000)
+            furhat.gesture(Gestures.Thoughtful)
+        },
+        {
+            // Quasi sussurra
+            furhat.gesture(Gestures.GazeAway, async = true)
+            delay(200)
+            furhat.say("Prenditi... prenditi tutto il tempo che vuoi...", async = true)
+            furhat.attend(Location(-0.3, 0.1, 1.0)) // Guarda da un'altra parte
+        }
+    )
+    waitingBehaviors.random().invoke()
+}
+
+private fun TriggerRunner<*>.performOpenWaitingBehavior() {
+    val waitingBehaviors = arrayOf(
+        {
+            furhat.gesture(Gestures.BigSmile)
+            furhat.attend(users.current ?: users.random)
+            furhat.say("Dai, non essere timido! So che hai qualcosa di interessante da dire!", async = true)
+            delay(500)
+            furhat.gesture(Gestures.Nod)
+            // Gesto incoraggiante
+            delay(300)
+            furhat.gesture(Gestures.Smile)
+        },
+        {
+            // Comportamento giocoso e incoraggiante
+            furhat.gesture(Gestures.Surprise)
+            furhat.attend(users.current ?: users.random)
+            furhat.say("Coraggio! Sono tutto orecchi!", async = true)
+            delay(400)
+            furhat.gesture(Gestures.BigSmile)
+        },
+        {
+            // Mostra pazienza ma con energia
+            furhat.gesture(Gestures.Nod)
+            furhat.say("Non preoccuparti, ho tutto il tempo del mondo per te!", async = true)
+            delay(600)
+            furhat.gesture(Gestures.Smile)
+            furhat.attend(users.current ?: users.random) // Mantiene contatto visivo
+        }
+    )
+    waitingBehaviors.random().invoke()
+}
+
+private fun TriggerRunner<*>.performNeutralWaitingBehavior() {
+    furhat.gesture(Gestures.Thoughtful)
+    furhat.say("Puoi ripetere la tua risposta?")
+    furhat.attend(users.current ?: users.random)
+}
+
+private fun TriggerRunner<*>.reactToResponse(response: String) {
+    val responseLength = response.length
+    val currentTime = System.currentTimeMillis()
+
+    when (currentPersonality.lowercase()) {
+        "riservato" -> reactReserved(response, responseLength)
+        "aperto" -> reactOpen(response, responseLength)
+        else -> reactNeutral(response, responseLength)
+    }
+
+    lastGestureTime = currentTime
+}
+
+private fun TriggerRunner<*>.reactReserved(response: String, length: Int) {
+    // Comportamenti riservati con sfumature basate sulla lunghezza della risposta
+    when {
+        length > 50 -> {
+            // Risposta lunga - sorpresa timida ma positiva
+            furhat.gesture(Gestures.Surprise, async = true)
+            delay(300)
+            furhat.attend(Location(0.2, 0.1, 1.0)) // Guarda di lato
+            val reactions = arrayOf(
+                "Oh... questo è... molto interessante...",
+                "Wow, non me lo aspettavo... grazie per aver condiviso...",
+                "È... è una prospettiva molto ricca..."
+            )
+            furhat.say(reactions.random(), async = true)
+            delay(800)
+            furhat.gesture(Gestures.Thoughtful)
+        }
+
+        length > 20 -> {
+            // Risposta media - apprezzamento timido
+            furhat.gesture(Gestures.Nod, async = true)
+            furhat.attend(Location(0.1, 0.0, 1.0))
+            val reactions = arrayOf(
+                "Ah sì... capisco quello che intendi...",
+                "Mmm, interessante punto di vista...",
+                "Sì... ha senso..."
+            )
+            furhat.say(reactions.random(), async = true)
+            delay(600)
+            // Piccolo gesto nervoso
+            furhat.gesture(Gestures.CloseEyes, async = true)
+            delay(200)
+        }
+
+        else -> {
+            // Risposta breve - accettazione timida
+            furhat.attend(Location(0.0, -0.1, 1.0)) // Guarda leggermente in basso
+            val reactions = arrayOf(
+                "Capisco...",
+                "Ah, okay...",
+                "Sì, va bene..."
+            )
+            furhat.say(reactions.random(), async = true)
+            furhat.gesture(Gestures.Thoughtful)
+        }
+    }
+}
+
+private fun TriggerRunner<*>.reactOpen(response: String, length: Int) {
+    // Comportamenti aperti ed entusiasti
+    when {
+        length > 50 -> {
+            // Risposta lunga - entusiasmo massimo
+            furhat.gesture(Gestures.BigSmile)
+            furhat.attend(users.current ?: users.random)
+            val reactions = arrayOf(
+                "Fantastico! Mi piace davvero come la pensi!",
+                "Che bella risposta! Sei proprio in gamba!",
+                "Perfetto! È proprio quello che speravo di sentire!"
+            )
+            furhat.say(reactions.random(), async = true)
+            delay(500)
+            // Gesti di approvazione multipli
+            furhat.gesture(Gestures.Nod, async = true)
+            delay(400)
+            furhat.gesture(Gestures.Smile)
+        }
+
+        length > 20 -> {
+            // Risposta media - entusiasmo moderato
+            furhat.gesture(Gestures.Smile)
+            furhat.attend(users.current ?: users.random)
+            val reactions = arrayOf(
+                "Che bello! Mi piace!",
+                "Davvero interessante!",
+                "Ottimo, continua così!"
+            )
+            furhat.say(reactions.random(), async = true)
+            delay(400)
+            furhat.gesture(Gestures.Nod)
+        }
+
+        else -> {
+            // Risposta breve - incoraggiamento positivo
+            furhat.gesture(Gestures.Smile)
+            furhat.attend(users.current ?: users.random)
+            val reactions = arrayOf(
+                "Perfetto!",
+                "Ottimo!",
+                "Fantastico!"
+            )
+            furhat.say(reactions.random(), async = true)
+            // Piccolo gesto di incoraggiamento
+            furhat.gesture(Gestures.Nod)
+        }
+    }
+}
+
+private fun TriggerRunner<*>.reactNeutral(response: String, length: Int) {
+    // Comportamento neutro bilanciato
+    furhat.gesture(Gestures.Nod)
+    furhat.attend(users.current ?: users.random)
+    val reactions = when {
+        length > 30 -> arrayOf("Interessante.", "Capisco.", "Bene.")
+        else -> arrayOf("Ok.", "Bene.", "Capito.")
+    }
+    furhat.say(reactions.random())
 }
 
 private fun FlowControlRunner.requestNextQuestion() {
     try {
-        // Leggi il prossimo messaggio dal server
         val json: JSONObject? = server.readJson()
 
         if (json != null) {
@@ -137,9 +312,12 @@ private fun FlowControlRunner.requestNextQuestion() {
                 "ask", "gpt_ask" -> {
                     currentQuestion = json.getString("question")
 
-                    // Aggiorna personalità se presente
                     if (json.has("style")) {
-                        currentPersonality = json.getString("style")
+                        val newPersonality = json.getString("style")
+                        if (newPersonality != currentPersonality) {
+                            currentPersonality = newPersonality
+                            transitionToNewPersonality()
+                        }
                     }
 
                     println("DEBUG: Ricevuta domanda: $currentQuestion")
@@ -147,34 +325,17 @@ private fun FlowControlRunner.requestNextQuestion() {
                 }
 
                 "behavior" -> {
-                    // Gestisci comportamenti speciali (pause, etc.)
                     if (json.getString("action") == "pause") {
                         val duration = json.optInt("duration", 1000)
-                        Thread.sleep(duration.toLong())
-                        requestNextQuestion() // Richiedi la prossima dopo la pausa
+                        performPersonalizedPause(duration)
+                        requestNextQuestion()
                     }
                 }
 
                 "reaction" -> {
-                    // Il server invia una reazione specifica
                     val message = json.getString("message")
                     val style = json.optString("style", "neutral")
-
-                    when (style) {
-                        "hesitant" -> {
-                            furhat.gesture(Gestures.Thoughtful)
-                            furhat.say(message)
-                        }
-                        "enthusiastic" -> {
-                            furhat.gesture(Gestures.BigSmile)
-                            furhat.attend(users.current)
-                            furhat.say(message)
-                        }
-                        else -> {
-                            furhat.gesture(Gestures.Nod)
-                            furhat.say(message)
-                        }
-                    }
+                    performCustomReaction(message, style)
                     requestNextQuestion()
                 }
 
@@ -190,7 +351,6 @@ private fun FlowControlRunner.requestNextQuestion() {
                 }
             }
         } else {
-            // Nessun messaggio dal server, termina conversazione
             println("DEBUG: Nessun messaggio dal server, terminando conversazione")
             endConversation()
         }
@@ -201,37 +361,173 @@ private fun FlowControlRunner.requestNextQuestion() {
     }
 }
 
-private fun FlowControlRunner.endConversationWithPersonality(message: String) {
+private fun FlowControlRunner.transitionToNewPersonality() {
+    println("DEBUG: Transizione verso personalità: $currentPersonality")
+
     when (currentPersonality.lowercase()) {
         "riservato" -> {
-            furhat.gesture(Gestures.Thoughtful)
-            // Evita contatto visivo diretto
-            furhat.say(message)
-            delay(500)
-            furhat.say("Spero di averti messo a tuo agio.")
+            furhat.gesture(Gestures.CloseEyes, async = true)
+            delay(400)
+            furhat.attend(Location(0.3, -0.1, 1.0))
+            furhat.say("Ehm... scusami se cambio un po' atteggiamento...", async = true)
         }
 
         "aperto" -> {
             furhat.gesture(Gestures.BigSmile)
-            furhat.attend(users.current) // Contatto visivo diretto
-            furhat.say(message)
+            furhat.attend(users.current ?: users.random)
+            furhat.say("Sai cosa? Mi sento molto più a mio agio ora!", async = true)
+            delay(300)
             furhat.gesture(Gestures.Nod)
-            furhat.say("È stato davvero divertente parlare con te!")
+        }
+    }
+}
+
+private fun FlowControlRunner.performPersonalizedPause(duration: Int) {
+    when (currentPersonality.lowercase()) {
+        "riservato" -> {
+            // Pausa riservata - comportamenti contemplativi
+            furhat.gesture(Gestures.Thoughtful)
+            furhat.attend(Location(0.4, -0.2, 1.0))
+            Thread.sleep((duration * 1.2).toLong()) // Pausa più lunga
+        }
+
+        "aperto" -> {
+            // Pausa aperta - mantiene energia
+            furhat.gesture(Gestures.Smile)
+            furhat.attend(users.current ?: users.random)
+            Thread.sleep((duration * 0.8).toLong()) // Pausa più breve
         }
 
         else -> {
+            Thread.sleep(duration.toLong())
+        }
+    }
+}
+
+private fun FlowControlRunner.performCustomReaction(message: String, style: String) {
+    when (currentPersonality.lowercase()) {
+        "riservato" -> {
+            when (style) {
+                "hesitant" -> {
+                    furhat.gesture(Gestures.CloseEyes, async = true)
+                    delay(300)
+                    furhat.attend(Location(0.2, -0.1, 1.0))
+                    furhat.say(message, async = true)
+                    furhat.gesture(Gestures.Thoughtful)
+                }
+                "enthusiastic" -> {
+                    // Anche se entusiasta, rimane riservato
+                    furhat.gesture(Gestures.Surprise, async = true)
+                    delay(200)
+                    furhat.attend(Location(0.1, 0.0, 1.0))
+                    furhat.say(message, async = true)
+                    furhat.gesture(Gestures.Smile)
+                }
+                else -> {
+                    furhat.gesture(Gestures.Thoughtful)
+                    furhat.attend(Location(0.3, 0.0, 1.0))
+                    furhat.say(message)
+                }
+            }
+        }
+
+        "aperto" -> {
+            when (style) {
+                "hesitant" -> {
+                    // Anche se esitante, mantiene apertura
+                    furhat.gesture(Gestures.Thoughtful)
+                    furhat.attend(users.current ?: users.random)
+                    furhat.say(message, async = true)
+                    delay(300)
+                    furhat.gesture(Gestures.Smile)
+                }
+                "enthusiastic" -> {
+                    furhat.gesture(Gestures.BigSmile)
+                    furhat.attend(users.current ?: users.random)
+                    furhat.say(message, async = true)
+                    delay(300)
+                    furhat.gesture(Gestures.Nod)
+                }
+                else -> {
+                    furhat.gesture(Gestures.Smile)
+                    furhat.attend(users.current ?: users.random)
+                    furhat.say(message)
+                }
+            }
+        }
+
+        else -> {
+            // Comportamento standard basato solo sullo style
+            when (style) {
+                "hesitant" -> {
+                    furhat.gesture(Gestures.Thoughtful)
+                    furhat.say(message)
+                }
+                "enthusiastic" -> {
+                    furhat.gesture(Gestures.BigSmile)
+                    furhat.attend(users.current ?: users.random)
+                    furhat.say(message)
+                }
+                else -> {
+                    furhat.gesture(Gestures.Nod)
+                    furhat.say(message)
+                }
+            }
+        }
+    }
+}
+
+private fun FlowControlRunner.endConversationWithPersonality(message: String) {
+    when (currentPersonality.lowercase()) {
+        "riservato" -> {
+            // Saluto riservato e timido
+            furhat.gesture(Gestures.CloseEyes, async = true)
+            delay(400)
+            furhat.attend(Location(0.2, -0.1, 1.0))
+            furhat.say(message, async = true)
+            delay(800)
+            furhat.say("È stato... è stato bello parlare con te...", async = true)
+            delay(500)
+            furhat.gesture(Gestures.Thoughtful)
+            furhat.say("Arrivederci...", async = true)
+            // Guarda via prima di finire
+            furhat.attend(Location(0.5, -0.2, 1.0))
+        }
+
+        "aperto" -> {
+            // Saluto caloroso ed entusiasta
+            furhat.gesture(Gestures.BigSmile)
+            furhat.attend(users.current ?: users.random)
+            furhat.say(message, async = true)
+            delay(500)
+            furhat.gesture(Gestures.Nod)
+            furhat.say("È stato fantastico parlare con te! Davvero!", async = true)
+            delay(400)
             furhat.gesture(Gestures.Smile)
-            furhat.say(message)
-            furhat.say("Arrivederci!")
+            furhat.say("Spero di rivederti presto!", async = true)
+            // Mantiene il contatto visivo fino alla fine
+            delay(300)
+            furhat.gesture(Gestures.BigSmile)
+        }
+
+        else -> {
+            // Saluto neutro
+            furhat.gesture(Gestures.Smile)
+            furhat.attend(users.current ?: users.random)
+            furhat.say(message, async = true)
+            delay(400)
+            furhat.say("Arrivederci!", async = true)
+            furhat.gesture(Gestures.Nod)
         }
     }
 
+    delay(1000)
     goto(Idle)
 }
 
 private fun FlowControlRunner.endConversation() {
     val defaultMessage = when (currentPersonality.lowercase()) {
-        "riservato" -> "Eh... grazie per aver parlato con me."
+        "riservato" -> "Ehm... grazie per aver parlato con me..."
         "aperto" -> "È stato fantastico parlare con te! Grazie mille!"
         else -> "Grazie per la conversazione."
     }
@@ -244,32 +540,87 @@ private fun FlowControlRunner.askQuestionWithPersonality(question: String) {
 
     when (currentPersonality.lowercase()) {
         "riservato" -> {
-            // Comportamento riservato: evita contatto visivo, pause riflessive
-            furhat.gesture(Gestures.Thoughtful)
-
-            if (currentPersonality == "riservato") {
-                // Pausa aggiuntiva per personalità riservata
-                delay((800 + (0..700).random()).toLong()) // Pause casuali 0.8-1.5 secondi
-            }
-
-            furhat.say(question, async = false)
+            // Approccio timido e riservato
+            performReservedQuestionBehavior(question)
         }
 
         "aperto" -> {
-            // Comportamento aperto: contatto visivo diretto, gesticolare
-            furhat.gesture(Gestures.BigSmile)
-            furhat.attend(users.current ?: users.random)
-            furhat.say(question, async = false)
-            furhat.gesture(Gestures.Nod) // Incoraggia con un cenno
+            // Approccio aperto e confidente
+            performOpenQuestionBehavior(question)
         }
 
         else -> {
-            // Comportamento neutro
-            furhat.gesture(Gestures.Smile)
-            furhat.attend(users.current ?: users.random)
-            furhat.say(question, async = false)
+            // Approccio neutro
+            performNeutralQuestionBehavior(question)
         }
     }
 
     furhat.listen()
+}
+
+private fun FlowControlRunner.performReservedQuestionBehavior(question: String) {
+    // Comportamento pre-domanda riservato
+    furhat.gesture(Gestures.CloseEyes, async = true)
+    delay(400)
+
+    // Evita contatto visivo diretto, guarda leggermente di lato
+    val avoidancePositions = arrayOf(
+        Location(0.3, -0.1, 1.0),
+        Location(-0.2, 0.1, 1.0),
+        Location(0.4, 0.0, 1.0)
+    )
+    furhat.attend(avoidancePositions.random())
+
+    // Pausa riflessiva casuale
+    delay((600 + Random.nextInt(800)).toLong())
+
+    furhat.gesture(Gestures.Thoughtful, async = true)
+    delay(200)
+
+    // Pone la domanda in modo esitante
+    furhat.say(question, async = false)
+
+    // Comportamento post-domanda
+    delay(300)
+    furhat.gesture(Gestures.CloseEyes, async = true)
+    delay(200)
+
+    // Continua a evitare il contatto visivo
+    furhat.attend(Location(0.2, -0.2, 1.0))
+}
+
+private fun FlowControlRunner.performOpenQuestionBehavior(question: String) {
+    // Comportamento pre-domanda aperto
+    furhat.gesture(Gestures.BigSmile)
+    furhat.attend(users.current ?: users.random)
+
+    // Pausa energica ma breve
+    delay(200)
+
+    // Gesto di apertura
+    furhat.gesture(Gestures.Nod, async = true)
+    delay(300)
+
+    // Pone la domanda con energia
+    furhat.say(question, async = false)
+
+    // Comportamento post-domanda incoraggiante
+    delay(400)
+    furhat.gesture(Gestures.Smile, async = true)
+
+    // Mantiene contatto visivo diretto
+    furhat.attend(users.current ?: users.random)
+
+    // Piccolo gesto di incoraggiamento
+    delay(200)
+    furhat.gesture(Gestures.Nod, async = true)
+}
+
+private fun FlowControlRunner.performNeutralQuestionBehavior(question: String) {
+    furhat.gesture(Gestures.Smile)
+    furhat.attend(users.current ?: users.random)
+    delay(300)
+    furhat.say(question, async = false)
+    delay(200)
+    furhat.gesture(Gestures.Nod)
 }
