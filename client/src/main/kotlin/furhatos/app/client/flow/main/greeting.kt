@@ -26,5 +26,14 @@ val Greeting: State = state(Parent) {
         goto(Idle)
     }
 
+    onResponse {
+        furhat.ask("Per favore, rispondi con sì o no. Posso farti qualche domanda?")
+    }
+
+    onNoResponse {
+        furhat.say("Non ti ho sentito. Per favore, ripeti.")
+        furhat.listen()
+    }
+
 }
 

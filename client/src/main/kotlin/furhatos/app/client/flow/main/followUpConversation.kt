@@ -12,6 +12,7 @@ var currentPersonality: String = ""
 var isWaitingForResponse = false
 var currentQuestion = ""
 var questionCount = 0
+var conversationEnded = false
 
 // Tracciamento per comportamenti naturali
 var lastGestureTime = 0L
@@ -21,6 +22,7 @@ val FollowUpConversation: State = state(Parent) {
 
     onEntry {
         println("DEBUG: Entrando in FollowUpConversation con personalità: $currentPersonality")
+        conversationEnded = false
         initializePersonalityBehavior()
         requestNextQuestion()
     }
@@ -59,8 +61,6 @@ private fun FlowControlRunner.initializePersonalityBehavior() {
     when (currentPersonality.lowercase()) {
         "riservato" -> {
             // Postura iniziale riservata
-            furhat.gesture(Gestures.CloseEyes, async = true)
-            delay(300)
             furhat.gesture(Gestures.Thoughtful)
             // Evita contatto visivo diretto, guarda leggermente di lato
             furhat.attend(Location(0.3, 0.0, 1.0))
@@ -121,8 +121,8 @@ private fun TriggerRunner<*>.performReservedWaitingBehavior() {
             furhat.attend(Location(0.5, -0.2, 1.0))
             furhat.say("Um... non c'è fretta...", async = true)
             delay(800)
-            // Gesto nervoso - si tocca il viso o guarda in basso
-            furhat.gesture(Gestures.CloseEyes, async = true)
+            // Gesto nervoso - guarda in basso SENZA chiudere occhi
+            furhat.attend(Location(0.0, -0.3, 1.0))
             delay(300)
         },
         {
@@ -223,8 +223,8 @@ private fun TriggerRunner<*>.reactReserved(response: String, length: Int) {
             )
             furhat.say(reactions.random(), async = true)
             delay(600)
-            // Piccolo gesto nervoso
-            furhat.gesture(Gestures.CloseEyes, async = true)
+            // Guarda ancora più lontano invece di chiudere occhi
+            furhat.attend(Location(0.3, -0.1, 1.0))
             delay(200)
         }
 
@@ -366,10 +366,9 @@ private fun FlowControlRunner.transitionToNewPersonality() {
 
     when (currentPersonality.lowercase()) {
         "riservato" -> {
-            furhat.gesture(Gestures.CloseEyes, async = true)
-            delay(400)
             furhat.attend(Location(0.3, -0.1, 1.0))
             furhat.say("Ehm... scusami se cambio un po' atteggiamento...", async = true)
+            delay(400)
         }
 
         "aperto" -> {
@@ -478,60 +477,34 @@ private fun FlowControlRunner.performCustomReaction(message: String, style: Stri
 }
 
 private fun FlowControlRunner.endConversationWithPersonality(message: String) {
-    when (currentPersonality.lowercase()) {
-        "riservato" -> {
-            // Saluto riservato e timido
-            furhat.gesture(Gestures.CloseEyes, async = true)
-            delay(400)
-            furhat.attend(Location(0.2, -0.1, 1.0))
-            furhat.say(message, async = true)
-            delay(800)
-            furhat.say("È stato... è stato bello parlare con te...", async = true)
-            delay(500)
-            furhat.gesture(Gestures.Thoughtful)
-            furhat.say("Arrivederci...", async = true)
-            // Guarda via prima di finire
-            furhat.attend(Location(0.5, -0.2, 1.0))
-        }
+    // Imposta il flag per fermare il listening
+    conversationEnded = true
+    isWaitingForResponse = false
 
-        "aperto" -> {
-            // Saluto caloroso ed entusiasta
-            furhat.gesture(Gestures.BigSmile)
-            furhat.attend(users.current ?: users.random)
-            furhat.say(message, async = true)
-            delay(500)
-            furhat.gesture(Gestures.Nod)
-            furhat.say("È stato fantastico parlare con te! Davvero!", async = true)
-            delay(400)
-            furhat.gesture(Gestures.Smile)
-            furhat.say("Spero di rivederti presto!", async = true)
-            // Mantiene il contatto visivo fino alla fine
-            delay(300)
-            furhat.gesture(Gestures.BigSmile)
-        }
+    delay(800)
 
-        else -> {
-            // Saluto neutro
-            furhat.gesture(Gestures.Smile)
-            furhat.attend(users.current ?: users.random)
-            furhat.say(message, async = true)
-            delay(400)
-            furhat.say("Arrivederci!", async = true)
-            furhat.gesture(Gestures.Nod)
-        }
-    }
+    // Ferma tutti i comportamenti asincroni in corso
+    furhat.stopSpeaking()
 
-    delay(1000)
+    // Posizione neutra finale
+    furhat.attend(users.current ?: users.random)
+
+    // Solo il messaggio dal server, senza sovrapposizioni
+    furhat.say(message)
+
+    // Gesto di chiusura semplice
+    furhat.gesture(Gestures.Nod)
+
+    // Attesa breve prima di passare a Idle
+    delay(500)
+
+    println("DEBUG: Conversazione terminata, passaggio a Idle")
     goto(Idle)
 }
 
 private fun FlowControlRunner.endConversation() {
-    val defaultMessage = when (currentPersonality.lowercase()) {
-        "riservato" -> "Ehm... grazie per aver parlato con me..."
-        "aperto" -> "È stato fantastico parlare con te! Grazie mille!"
-        else -> "Grazie per la conversazione."
-    }
-
+    // Messaggio di default semplice
+    val defaultMessage = "Grazie per la conversazione."
     endConversationWithPersonality(defaultMessage)
 }
 
@@ -559,8 +532,8 @@ private fun FlowControlRunner.askQuestionWithPersonality(question: String) {
 }
 
 private fun FlowControlRunner.performReservedQuestionBehavior(question: String) {
-    // Comportamento pre-domanda riservato
-    furhat.gesture(Gestures.CloseEyes, async = true)
+    // Comportamento pre-domanda riservato SENZA chiudere occhi
+    furhat.gesture(Gestures.Thoughtful)
     delay(400)
 
     // Evita contatto visivo diretto, guarda leggermente di lato
@@ -580,12 +553,8 @@ private fun FlowControlRunner.performReservedQuestionBehavior(question: String) 
     // Pone la domanda in modo esitante
     furhat.say(question, async = false)
 
-    // Comportamento post-domanda
+    // Comportamento post-domanda - guarda altrove ma SENZA chiudere occhi
     delay(300)
-    furhat.gesture(Gestures.CloseEyes, async = true)
-    delay(200)
-
-    // Continua a evitare il contatto visivo
     furhat.attend(Location(0.2, -0.2, 1.0))
 }
 
