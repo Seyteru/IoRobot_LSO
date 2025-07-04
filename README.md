@@ -12,7 +12,6 @@ This project implements an intelligent conversational robot that conducts person
 
 - **Server (C)**: Multi-threaded TCP server handling client connections, personality assessment logic, and GPT integration
 - **Client (Kotlin)**: Furhat robot skill implementing conversational states and personality-adaptive behaviors
-- **Client NoGUI (Kotlin)**: Command-line client for testing without Furhat hardware
 
 ### Key Features
 
@@ -43,10 +42,7 @@ This project implements an intelligent conversational robot that conducts person
 │   │       └── network/   # Server communication
 │   ├── assets/            # Robot assets
 │   ├── build.gradle       # Build configuration
-│   └── skill.properties   # Skill metadata
-└── client_noGUI/          # Command-line Test Client
-    ├── src/main/kotlin/   # Kotlin source code
-    └── build.gradle.kts   # Build configuration
+└── └── skill.properties   # Skill metadata
 ```
 
 ## Setup and Installation
