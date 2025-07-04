@@ -24,7 +24,7 @@ COPY .env ./
 RUN make
 
 # Espone la porta su cui il server è in ascolto
-EXPOSE 8080
+EXPOSE 5555
 
 # Comando di default per eseguire il server direttamente
 CMD ["./server"]

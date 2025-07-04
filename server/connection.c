@@ -153,7 +153,19 @@ void handleClient(int clientFileDescriptor, struct sockaddr_in *clientAddress){
         // Attendi risposta
         bytesRead = read(clientFileDescriptor, buffer, BUFFER_SIZE - 1);
         if (bytesRead <= 0) {
-            LOG_CLIENT_ERROR(clientAddress, "← CLIENT: Connection lost or no response received");
+            if (bytesRead == 0) {
+                // Disconnessione normale del client
+                LOG_CLIENT_INFO(clientAddress, "← CLIENT: Disconnected normally");
+            } else {
+                // Errore reale nella lettura
+                if (errno == ECONNRESET) {
+                    LOG_CLIENT_INFO(clientAddress, "← CLIENT: Connection reset by peer");
+                } else if (errno == ETIMEDOUT) {
+                    LOG_CLIENT_INFO(clientAddress, "← CLIENT: Connection timed out");
+                } else {
+                    LOG_CLIENT_ERROR(clientAddress, "← CLIENT: Read error - %s", strerror(errno));
+                }
+            }
             break;
         }
         buffer[bytesRead] = '\0';
