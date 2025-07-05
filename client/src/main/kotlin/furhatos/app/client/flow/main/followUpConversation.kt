@@ -498,8 +498,16 @@ private fun FlowControlRunner.endConversationWithPersonality(message: String) {
     // Attesa breve prima di passare a Idle
     delay(500)
 
-    println("DEBUG: Conversazione terminata, passaggio a Idle")
-    goto(Idle)
+    println("DEBUG: Conversazione terminata, chiusura Client")
+    try {
+        server.close()
+        println("DEBUG: Connessione al server chiusa")
+    } catch (e: Exception) {
+        println("ERRORE nella chiusura della connessione: ${e.message}")
+    }
+
+    // Chiude completamente il client
+    System.exit(0)
 }
 
 private fun FlowControlRunner.endConversation() {
