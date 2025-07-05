@@ -9,6 +9,7 @@
 #define GPT_BUFFER_SIZE 4096
 #define GPT_RESPONSE_SIZE 2048
 #define MAX_CONVERSATION_HISTORY 50
+#define MAX_MESSAGE_CONTENT 4096 
 
 typedef struct {
     char *memory;
@@ -17,7 +18,7 @@ typedef struct {
 
 typedef struct {
     char role[16];      // "system", "user", "assistant"
-    char content[512];
+    char content[MAX_MESSAGE_CONTENT]; 
 } conversation_message_t;
 
 typedef struct {

@@ -7,8 +7,8 @@
 static char g_api_key[256] = {0};
 static char g_api_url[256] = {0};
 static char g_model[64] = {0};
-static int g_max_tokens = 150;
-static float g_temperature = 0.7;
+static int g_max_tokens = 300;
+static float g_temperature = 0.75;
 
 // Callback per ricevere dati da CURL
 size_t gpt_write_callback(void *contents, size_t size, size_t nmemb, gpt_response_t *response) {
@@ -188,8 +188,12 @@ int gpt_format_personality_prompt(char* output, size_t output_size,
     
     const char* response_part = user_response ? user_response : "nullo";
     
-    snprintf(output, output_size, "[%s]; [%s]; [%s]", 
-             response_part, behavior_style, next_question);
+    // Formato corretto: chiarisce che il numero è la risposta precedente
+    snprintf(output, output_size, 
+             "IMPORTANTE: L'utente ha risposto %s alla domanda precedente. "
+             "Reagisci con comportamento %s e presenta la nuova domanda IDENTICA. "
+             "FORMATO: [%s]; [%s]; [%s]", 
+             response_part, behavior_style, response_part, behavior_style, next_question);
     
     LOG_DEBUG("Formatted prompt: %s", output);
     return 0;
@@ -212,12 +216,17 @@ int gpt_send_message(gpt_session_t* session, const char* user_message, char* res
         return -1;
     }
     
-    // Aggiungi il messaggio dell'utente alla conversazione
-    if (session->message_count < MAX_CONVERSATION_HISTORY - 1) {
-        strcpy(session->messages[session->message_count].role, "user");
-        strncpy(session->messages[session->message_count].content, user_message, 
-                sizeof(session->messages[session->message_count].content) - 1);
-        session->message_count++;
+    // Aggiungi il messaggio dell'utente alla cronologia
+    strcpy(session->messages[session->message_count].role, "user");
+    strncpy(session->messages[session->message_count].content, user_message, 
+            sizeof(session->messages[session->message_count].content) - 1);
+    session->message_count++;
+    
+    size_t msg_len = strlen(user_message);
+    int chars_to_show = 100;
+    if (msg_len > chars_to_show) {
+        LOG_DEBUG("Last %d chars of prompt sent: '...%s'", 
+                  chars_to_show, user_message + (msg_len - chars_to_show));
     }
     
     // Costruisci il JSON per la richiesta

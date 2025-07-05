@@ -47,7 +47,7 @@ repositories {
 dependencies {
     implementation 'com.furhatrobotics.furhatos:furhat-commons:2.8.3'
     implementation 'com.furhatrobotics.assets:StandardLibraryCollection:1.2.0'
-    implementation 'org.json:json:20231013'
+    implementation 'org.json:json:20180130'
     implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1"
 }
 
