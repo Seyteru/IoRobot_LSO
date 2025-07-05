@@ -7,6 +7,7 @@ import furhatos.gestures.Gestures
 import furhatos.records.Location
 import org.json.JSONObject
 import kotlin.random.Random
+import kotlin.system.exitProcess
 
 var currentPersonality: String = ""
 var isWaitingForResponse = false
@@ -507,7 +508,7 @@ private fun FlowControlRunner.endConversationWithPersonality(message: String) {
     }
 
     // Chiude completamente il client
-    System.exit(0)
+    exitProcess(0)
 }
 
 private fun FlowControlRunner.endConversation() {
