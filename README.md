@@ -99,8 +99,6 @@ cd client
 java -jar build/libs/client-all.skill
 ```
 
-**Note**: If you encounter JSON dependency conflicts, the build script automatically resolves them by using compatible versions.
-
 **Prerequisites**:
 - Java 8 or higher
 - Furhat Studio running (for Virtual Furhat)
