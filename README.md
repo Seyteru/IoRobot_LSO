@@ -73,17 +73,38 @@ make
 make run
 ```
 
+#### Docker Deployment (Recommended)
+
+```bash
+docker-compose up --build
+```
+
+This will automatically build and start the server with all necessary dependencies.
+
 ### Client Setup
 
 #### Furhat Robot Client
 
-1. Install Furhat SDK and configure robot
-2. Build and deploy:
+1. **Install Furhat SDK** and configure robot
+2. **Start Virtual Furhat Studio** before launching the client
+3. **Build and deploy**:
 ```bash
 cd client
+# Build the shadow JAR (includes all dependencies)
 ./gradlew shadowJar
-# Deploy the generated .skill file to Furhat
 ```
+4. **Run the client**:
+```bash
+# Execute the generated skill file
+java -jar build/libs/client-all.skill
+```
+
+**Note**: If you encounter JSON dependency conflicts, the build script automatically resolves them by using compatible versions.
+
+**Prerequisites**:
+- Java 8 or higher
+- Furhat Studio running (for Virtual Furhat)
+- Gradle wrapper (included in project)
 
 #### NoGUI Test Client
 
@@ -195,16 +216,16 @@ cd client
 
 ### Testing
 
-Use the NoGUI client for testing server functionality:
-```bash
-cd client_noGUI
-./gradlew run
-```
-
-The server includes a comprehensive test client in `server/test.py` for stress testing and validation.
+The server includes comprehensive testing capabilities and can be stress-tested using the included test suite.
 
 ### Docker Deployment
 
+For production deployment, use Docker Compose:
+```bash
+docker-compose up --build
+```
+
+Or build and run manually:
 ```bash
 cd server
 docker build -t iorobot-server .
@@ -242,3 +263,11 @@ This project is developed for the Operating Systems Laboratory course. See LICEN
 - Furhat Robotics for the conversational robot platform
 - OpenAI for GPT integration capabilities
 - Course instructors and teaching assistants
+
+### Troubleshooting
+
+**Client Issues**:
+- Ensure Furhat Studio is running before starting the client
+- Check that the server is running on the correct port (5555)
+- Verify Java version compatibility (Java 8+)
+- If build fails with dependency conflicts, clean and rebuild: `./gradlew clean shadowJar`
